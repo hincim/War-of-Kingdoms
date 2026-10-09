@@ -3,6 +3,24 @@
 Kahramanların ve orduların çarpıştığı, Flutter ile yazılmış gerçek zamanlı strateji oyunu. Tüm grafikler
 kodla (prosedürel olarak) çizilir; harici görsel ya da paket gerekmez.
 
+![Kahramanlar ve ordular çarpışıyor: Başbüyücünün Kar Fırtınası ve Su Elementali, Boğa Şefin Savaş Kükremesi](docs/screenshots/savas.jpg)
+
+## Ekran görüntüleri
+
+### Masaüstü
+
+| Ana menü | Üs ve üretim |
+| --- | --- |
+| ![Ana menü: taraf ve zorluk seçimi](docs/screenshots/ana-menu.jpg) | ![Gelişmiş insan üssü: ana bina, çiftlikler, kışla ve sunak; kışlada üretim sırası](docs/screenshots/us.jpg) |
+| Taraf ve zorluk seçimi, "Nasıl Oynanır" ekranı | Altın madeni, çiftlikler, kışla ve sunak; seçili kışlanın üretim sırası ve komut kartı |
+
+### Telefon (yatay)
+
+| Savaş | Ork üssü |
+| --- | --- |
+| ![Telefonda savaş: dokunmatik komut kartı ve kahraman bilgisi](docs/screenshots/mobil-savas.jpg) | ![Telefonda ork üssü: seçili kışla ve üretim sırası](docs/screenshots/mobil-us.jpg) |
+| Kahraman seçiliyken can/mana, envanter ve yetenekler | Sol sütunda kahraman ve "Ordu" düğmesi, altta seçim şeridi |
+
 ## Çalıştırma
 
 ```bash
