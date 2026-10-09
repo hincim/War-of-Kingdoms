@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'game/data.dart';
 import 'render/sprites.dart';
 import 'ui/game_screen.dart';
+import 'ui/how_to_play.dart';
 import 'ui/hud.dart';
 import 'ui/mobile_hud.dart';
 
@@ -141,6 +142,20 @@ class _MenuScreenState extends State<MenuScreen> {
     ),
   );
 
+  Widget _howToPlayButton({required bool compact}) => OutlinedButton.icon(
+    style: OutlinedButton.styleFrom(
+      foregroundColor: kGold,
+      side: const BorderSide(color: kBorder, width: 1.5),
+      backgroundColor: const Color(0xCC241A11),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: compact ? 12 : 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      textStyle: TextStyle(fontSize: compact ? 14 : 16, fontWeight: FontWeight.w700),
+    ),
+    onPressed: () => showHowToPlay(context, touch: useTouchLayout(MediaQuery.sizeOf(context))),
+    icon: const Icon(Icons.help_outline, size: 20),
+    label: const Text('Nasıl Oynanır'),
+  );
+
   /// Yatay telefon: her şey tek ekrana sığar.
   Widget _compactMenu() {
     return Column(
@@ -171,7 +186,7 @@ class _MenuScreenState extends State<MenuScreen> {
           runSpacing: 10,
           alignment: WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
-          children: [_difficulty(compact: true), _startButton(compact: true)],
+          children: [_difficulty(compact: true), _startButton(compact: true), _howToPlayButton(compact: true)],
         ),
       ],
     );
@@ -215,20 +230,8 @@ class _MenuScreenState extends State<MenuScreen> {
         _difficulty(compact: false),
         const SizedBox(height: 30),
         _startButton(compact: false),
-        const SizedBox(height: 26),
-        Container(
-          constraints: const BoxConstraints(maxWidth: 620),
-          padding: const EdgeInsets.all(14),
-          decoration: panelDeco(radius: 8),
-          child: const Text(
-            'Amaç: Düşmanın tüm yapılarını yık.\n'
-            'İşçilerle altın ve odun topla, çiftlik kurarak yiyecek sınırını artır. Kışlada ordu, '
-            'sunakta kahraman yetiştir. Kahramanlar tarafsız yaratık kamplarını temizleyerek seviye '
-            'atlar, yetenek öğrenir ve eşya toplar. Gece görüş mesafesi azalır.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFFD7CCC8), fontSize: 13.5, height: 1.5),
-          ),
-        ),
+        const SizedBox(height: 14),
+        _howToPlayButton(compact: false),
       ],
     );
   }

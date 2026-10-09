@@ -13,6 +13,9 @@ import 'hud.dart';
 bool get isMobilePlatform =>
     !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
 
+/// Dokunmatik (mobil) yerleşim kullanılsın mı: telefon/tablet ya da küçük pencere.
+bool useTouchLayout(Size size) => isMobilePlatform || size.width < 1000 || size.height < 620;
+
 /// Telefon (yatay) arayüzü ölçüleri.
 const double kMobileTop = 32;
 const double kMobileBtn = 44;
@@ -75,13 +78,15 @@ class MobileHud extends StatelessWidget {
           child: MinimapView(c: c, base: minimapBase, fog: fog, repaint: minimapRepaint, onChanged: onChanged),
         ),
         if (hasCard) Positioned(right: right, bottom: bottom, child: _commandCard(card)),
-        Positioned(
-          left: left + kMobileMinimap + kMobileGap,
-          right: right + (hasCard ? kMobileCardW + kMobileGap : 0),
-          bottom: bottom,
-          height: kMobileStrip,
-          child: MobileInfoStrip(c: c, onChanged: onChanged),
-        ),
+        // Seçim yoksa şerit yalnızca ilk oyundaki kontrol ipucu için görünür.
+        if (c.sel.isNotEmpty || c.showHint)
+          Positioned(
+            left: left + kMobileMinimap + kMobileGap,
+            right: right + (hasCard ? kMobileCardW + kMobileGap : 0),
+            bottom: bottom,
+            height: kMobileStrip,
+            child: MobileInfoStrip(c: c, onChanged: onChanged),
+          ),
       ],
     );
   }

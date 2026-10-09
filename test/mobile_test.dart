@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:warcraft/game/data.dart';
 import 'package:warcraft/game/entities.dart';
+import 'package:warcraft/main.dart';
 import 'package:warcraft/ui/controller.dart';
 import 'package:warcraft/ui/game_screen.dart';
+import 'package:warcraft/ui/mobile_hud.dart';
 
 Future<void> run(WidgetTester tester, int frames) async {
   for (var i = 0; i < frames; i++) {
@@ -27,10 +29,14 @@ Future<GameController> startPhone(WidgetTester tester, {Faction faction = humanF
 
 void main() {
   testWidgets('telefonda dokunmatik oynanış', (tester) async {
+    GameController.hintShownThisSession = false;
     final c = await startPhone(tester);
     final g = c.game;
     expect(c.touch, isTrue, reason: 'telefon boyutunda mobil arayüz açılmalı');
     expect(find.text('Ordu'), findsOneWidget);
+    // İlk oyunda kontrol ipucu bir kez görünür
+    expect(c.showHint, isTrue);
+    expect(find.textContaining('Basılı tut + sürükle'), findsOneWidget);
 
     // Tek dokunuşla bir işçi seç
     final workers = g.units.where((u) => u.owner == kPlayer && u.type.worker).toList();
@@ -39,6 +45,7 @@ void main() {
     await tester.pump();
     expect(c.sel.length, 1);
     expect(c.sel.first.type.worker, isTrue);
+    expect(c.showHint, isFalse, reason: 'ilk seçimden sonra ipucu kaybolmalı');
 
     // Basılı tut + sürükle: kutu seçimi
     var minX = double.infinity, minY = double.infinity, maxX = -double.infinity, maxY = -double.infinity;
@@ -70,6 +77,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.close).last);
     await tester.pump();
     expect(c.sel, isEmpty);
+    await run(tester, 3);
+    expect(find.textContaining('Basılı tut + sürükle'), findsNothing, reason: 'ipucu bir daha gösterilmemeli');
+    expect(find.byType(MobileInfoStrip), findsNothing, reason: 'seçim yokken alt şerit gizli olmalı');
 
     // Tek parmakla kaydırma kamerayı hareket ettirir
     final camX = c.view.camX, camY = c.view.camY;
@@ -118,6 +128,13 @@ void main() {
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pump();
     expect(find.text('OYUN MENÜSÜ'), findsOneWidget);
+    await tester.tap(find.text('Nasıl Oynanır'));
+    await run(tester, 8);
+    expect(find.text('NASIL OYNANIR'), findsOneWidget);
+    expect(find.text('Dokunmatik kontroller'), findsOneWidget);
+    await tester.tap(find.byTooltip('Kapat'));
+    await run(tester, 8);
+    expect(find.text('NASIL OYNANIR'), findsNothing);
     await tester.tap(find.text('Oyuna Dön'));
     await tester.pump();
     expect(c.menuOpen, isFalse);
@@ -146,5 +163,24 @@ void main() {
     final mine = g.units.firstWhere((u) => u.isMine);
     c.select([mine]);
     await run(tester, 4);
+  });
+
+  testWidgets('ana menü telefonda tek ekrana sığıyor, Nasıl Oynanır açılıyor', (tester) async {
+    tester.view.physicalSize = const Size(852 * 3, 393 * 3);
+    tester.view.devicePixelRatio = 3;
+    tester.view.padding = const FakeViewPadding(left: 59 * 3, right: 59 * 3, bottom: 21 * 3);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const KingdomsApp());
+    await tester.pump();
+    final start = tester.getRect(find.text('SAVAŞA BAŞLA'));
+    expect(start.bottom, lessThan(393), reason: 'başlat düğmesi kaydırmadan görünmeli');
+    await tester.ensureVisible(find.text('Nasıl Oynanır'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nasıl Oynanır'));
+    await tester.pumpAndSettle();
+    expect(find.text('NASIL OYNANIR'), findsOneWidget);
+    expect(find.text('Dokunmatik kontroller'), findsOneWidget);
+    await tester.tap(find.byTooltip('Kapat'));
+    await tester.pumpAndSettle();
   });
 }

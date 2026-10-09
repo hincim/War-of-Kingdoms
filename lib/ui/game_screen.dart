@@ -11,6 +11,7 @@ import '../game/game.dart';
 import '../render/sprites.dart';
 import '../render/world_painter.dart';
 import 'controller.dart';
+import 'how_to_play.dart';
 import 'hud.dart';
 import 'mobile_hud.dart';
 
@@ -383,7 +384,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
               builder: (context, cons) {
                 c.screen = cons.biggest;
                 final safe = MediaQuery.paddingOf(context);
-                final compact = isMobilePlatform || cons.maxWidth < 1000 || cons.maxHeight < 620;
+                final compact = useTouchLayout(cons.biggest);
                 c.touch = compact;
                 c.hudTop = compact ? kMobileTop : kTopBar;
                 c.hudBottom = compact ? safe.bottom + 48 : kBottomHud;
@@ -532,7 +533,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _menuButton(String label, VoidCallback onTap, {bool primary = false}) => Padding(
+  Widget _menuButton(String label, VoidCallback onTap, {bool primary = false, bool refocus = true}) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: SizedBox(
       width: 260,
@@ -547,7 +548,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         ),
         onPressed: () {
           onTap();
-          _focus.requestFocus();
+          if (refocus) _focus.requestFocus();
         },
         child: Text(label),
       ),
@@ -582,16 +583,13 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
                 ),
                 const SizedBox(height: 18),
                 _menuButton('Oyuna Dön', () => setState(() => c.menuOpen = false), primary: true),
+                _menuButton(
+                  'Nasıl Oynanır',
+                  () => showHowToPlay(context, touch: c.touch).then((_) => _focus.requestFocus()),
+                  refocus: false,
+                ),
                 _menuButton('Yeniden Başlat', () => setState(_restart)),
                 _menuButton('Ana Menüye Dön', () => Navigator.of(context).pop()),
-                const SizedBox(height: 8),
-                const Divider(color: kBorder),
-                const SizedBox(height: 6),
-                Text(
-                  c.touch ? _touchHelp : _mouseHelp,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 12.5, height: 1.5),
-                ),
               ],
             ),
           ),
@@ -599,23 +597,6 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
       ),
     );
   }
-
-  static const _touchHelp =
-      'Dokun: birim seç · Seçiliyken yere / düşmana / madene / ağaca dokun: emir ver\n'
-      'Çift dokun ya da basılı tut: aynı türdeki birimler · Basılı tut + sürükle: kutu seçimi\n'
-      'Tek parmakla kaydır: kamera · İki parmak: yakınlaştır · Mini harita: hızlı geçiş\n'
-      'Sol sütun: kahramanlar, boştaki işçi, tüm ordu · ✕: seçimi kaldır\n'
-      'İnşa: yapıyı seç, yere dokun ya da sürükleyip ✓ ile onayla';
-
-  static const _mouseHelp =
-      'Sol tık: seç · Sürükle: kutu seçimi · Çift tık: aynı türdekiler\n'
-      'Sağ tık: hareket / saldırı / toplama / eşya alma / toplanma noktası\n'
-      'A: saldır · S: dur · H: pozisyonu koru · M: hareket · B: inşa · G: topla\n'
-      'Q W E: kahraman yetenekleri · O: yetenek öğren\n'
-      'Ctrl+1-9: grup ata · 1-9: grup seç (iki kez: kamera)\n'
-      'F1/F2: kahramanlar · F8: boştaki işçi · Boşluk: son uyarı\n'
-      'Ok tuşları / ekran kenarı / orta tuş / iki parmak: kamera · Tekerlek: yakınlaştır\n'
-      'Alt: tüm can çubukları · Pause: duraklat';
 
   void _restart() {
     terrain.dispose();

@@ -51,7 +51,17 @@ class GameController {
   GameController(this.game) {
     final hall = game.units.firstWhere((u) => u.owner == kPlayer && u.type.townHall);
     centerOn(hall.x, hall.y);
+    _hint = !hintShownThisSession;
+    hintShownThisSession = true;
   }
+
+  /// Kontrol ipucu uygulama açıkken yalnızca ilk oyunda gösterilir;
+  /// sonrasında "Nasıl Oynanır" ekranından ulaşılır.
+  static bool hintShownThisSession = false;
+  bool _hint = false;
+
+  /// İpucu ilk seçime ya da 20 saniyelik oyun süresine kadar görünür.
+  bool get showHint => _hint && game.time < 20;
 
   final Game game;
   final GameView view = GameView();
@@ -152,6 +162,7 @@ class GameController {
       if (r != 0) return r;
       return a.type.id.compareTo(b.type.id);
     });
+    if (list.isNotEmpty) _hint = false;
     sel
       ..clear()
       ..addAll(list.take(maxSelection));

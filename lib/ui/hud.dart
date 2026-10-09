@@ -371,7 +371,7 @@ class MessageList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final g = c.game;
-    final cancel = c.touch ? 'iptal için ✕' : 'sağ tık: iptal';
+    final cancel = c.touch ? 'iptal: İptal düğmesi' : 'sağ tık: iptal';
     final hint = switch (c.view.targeting) {
       'move' => 'Hedef noktayı seçin ($cancel)',
       'attack' => 'Saldırılacak hedefi ya da noktayı seçin ($cancel)',
@@ -382,7 +382,7 @@ class MessageList extends StatelessWidget {
         c.view.placing == null
             ? null
             : c.touch
-            ? '${c.view.placing!.name}: yere dokunun ya da sürükleyip ✓ ile onaylayın'
+            ? '${c.view.placing!.name}: yere dokunun ya da sürükleyip onay düğmesine basın'
             : '${c.view.placing!.name}: yer seçin (Shift ile birden fazla, sağ tık: iptal)',
     };
     return IgnorePointer(
@@ -830,12 +830,15 @@ class InfoPanel extends StatelessWidget {
             style: const TextStyle(color: kGold, fontSize: 17, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Sol tık: seç · Sürükle: kutu seçimi · Sağ tık: akıllı emir\n'
-            'Ok tuşları / ekran kenarı / orta tuş: kamerayı kaydır · Tekerlek: yakınlaştır\n'
-            'Ctrl+1-9: grup ata · 1-9: grubu seç · F1/F2: kahraman · F8: boştaki işçi\n'
-            'Boşluk: son uyarıya git · Alt: tüm can çubukları · Esc: iptal',
-            style: TextStyle(color: Color(0xFFD7CCC8), fontSize: 12.5, height: 1.45),
+          // Kontrol ipucu yalnızca ilk oyunun başında; sonra "Nasıl Oynanır" ekranında.
+          Text(
+            c.showHint
+                ? 'Sol tık: seç · Sürükle: kutu seçimi · Sağ tık: akıllı emir\n'
+                      'Ok tuşları / ekran kenarı / orta tuş: kamerayı kaydır · Tekerlek: yakınlaştır\n'
+                      'Ctrl+1-9: grup ata · 1-9: grubu seç · F1/F2: kahraman · F8: boştaki işçi\n'
+                      'Boşluk: son uyarıya git · Alt: tüm can çubukları · Esc: iptal'
+                : 'Kontroller ve ipuçları için: Menü (F10) → Nasıl Oynanır',
+            style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 12.5, height: 1.45),
           ),
         ],
       ),
