@@ -6,12 +6,13 @@ kodla (prosedürel olarak) çizilir; harici görsel ya da paket gerekmez.
 ## Çalıştırma
 
 ```bash
-flutter run -d macos     # masaüstü (önerilen)
+flutter run -d macos     # masaüstü
 flutter run -d chrome    # tarayıcı
+flutter run              # bağlı telefon / simülatör (iOS, Android)
 ```
 
-Oyun fare ve klavye için tasarlanmıştır. Dokunmatik ekranda temel kontroller çalışır
-(dokun: seç / emir ver, sürükle: kamerayı kaydır).
+Büyük ekranlarda fare ve klavye için tasarlanmış masaüstü arayüzü, telefonlarda (ya da 1000×620'den küçük
+pencerelerde) dokunmatik için ayrı bir arayüz açılır. Telefonda oyun yalnızca yatay ve tam ekran çalışır.
 
 ## Oyun
 
@@ -43,6 +44,20 @@ Oyun fare ve klavye için tasarlanmıştır. Dokunmatik ekranda temel kontroller
 | Alt | Tüm can çubukları |
 | Esc / F10 | İptal / menü |
 
+## Dokunmatik kontroller (telefon)
+
+| Hareket | İşlev |
+| --- | --- |
+| Birime dokun | Seç |
+| Seçiliyken yere / düşmana / madene / ağaca dokun | Hareket / saldırı / altın / odun |
+| Çift dokun ya da basılı tut | Ekrandaki aynı türden birimleri seç |
+| Basılı tut + sürükle | Kutu seçimi |
+| Tek parmakla kaydır | Kamera |
+| İki parmak | Yakınlaştır / uzaklaştır |
+| Sol sütun | Kahramanlar, boştaki işçi, **Ordu** (tüm askerleri seç) |
+| Şeritteki ✕ | Seçimi kaldır |
+| İnşa | Yapıyı seç → yere dokun ya da parmakla sürükleyip ✓ ile onayla |
+
 ## Kod yapısı
 
 ```
@@ -56,11 +71,13 @@ lib/
   render/sprites.dart     prosedürel çizimler
   render/world_painter.dart  dünya çizimi (arazi önbelleği, sis, efektler)
   ui/controller.dart      seçim, komut kartı, kısayollar
-  ui/hud.dart             üst çubuk, mini harita, bilgi paneli, komut kartı
+  ui/hud.dart             masaüstü arayüzü: üst çubuk, mini harita, bilgi paneli, komut kartı
+  ui/mobile_hud.dart      telefon arayüzü
   ui/game_screen.dart     oyun döngüsü ve girdi
 test/
   sim_test.dart           YZ–YZ maçları (harita simetrisi, ekonomi, kazanan)
   controls_test.dart      fare/klavye ile oynanış
+  mobile_test.dart        telefon boyutunda dokunmatik oynanış
   ui_fuzz_test.dart       komut kartı bulanık testi
 ```
 
