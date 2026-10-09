@@ -144,16 +144,25 @@ class _MobileTopBar extends StatelessWidget {
     ),
   );
 
-  Widget _res(IconData icon, Color col, String text, {Color textColor = Colors.white}) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 9),
+  Widget _res(
+    BuildContext context,
+    IconData icon,
+    Color col,
+    String text,
+    String template, {
+    Color textColor = Colors.white,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: col, size: 16),
         const SizedBox(width: 4),
-        Text(
+        fixedNum(
+          context,
           text,
-          style: kTextShadow.copyWith(color: textColor, fontSize: 14, fontWeight: FontWeight.w700),
+          kTextShadow.copyWith(color: textColor, fontSize: 14, fontWeight: FontWeight.w700),
+          template,
         ),
       ],
     ),
@@ -186,12 +195,14 @@ class _MobileTopBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _res(Icons.monetization_on, const Color(0xFFFFC107), '${me.gold}'),
-                  _res(Icons.forest, const Color(0xFF8BC34A), '${me.lumber}'),
+                  _res(context, Icons.monetization_on, const Color(0xFFFFC107), '${me.gold}', '88888'),
+                  _res(context, Icons.forest, const Color(0xFF8BC34A), '${me.lumber}', '88888'),
                   _res(
+                    context,
                     Icons.restaurant,
                     const Color(0xFFFFAB91),
                     '${me.foodUsed}/${me.foodCap}',
+                    '888/888',
                     textColor: me.foodUsed >= me.foodCap ? const Color(0xFFFF6E6E) : Colors.white,
                   ),
                 ],
@@ -204,12 +215,14 @@ class _MobileTopBar extends StatelessWidget {
             size: 16,
           ),
           const SizedBox(width: 4),
-          Text(
+          fixedNum(
+            context,
             g.clockText,
-            style: kTextShadow.copyWith(color: kGold, fontSize: 13, fontWeight: FontWeight.w700),
+            kTextShadow.copyWith(color: kGold, fontSize: 13, fontWeight: FontWeight.w700),
+            '88:88',
           ),
-          const SizedBox(width: 8),
-          Text(fmtClock(g.time), style: kTextShadow.copyWith(color: Colors.white70, fontSize: 12)),
+          const SizedBox(width: 6),
+          fixedNum(context, fmtClock(g.time), kTextShadow.copyWith(color: Colors.white70, fontSize: 12), '88:88'),
         ],
       ),
     );

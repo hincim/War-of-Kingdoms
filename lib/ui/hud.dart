@@ -34,6 +34,30 @@ const TextStyle kTextShadow = TextStyle(
   shadows: [Shadow(color: Colors.black, blurRadius: 3, offset: Offset(1, 1))],
 );
 
+// ---------------------------------------------------------------- Sabit genişlikli sayılar
+
+final Map<String, double> _numWidths = {};
+
+/// Değişen sayılar (kaynaklar, saat) için sabit genişlikli metin. Rakamlar eşit genişlikte çizilir ve
+/// kutu, [template] (ör. '88888') kadar geniş tutulur; böylece değer değiştikçe çevresindeki öğeler kaymaz.
+Widget fixedNum(BuildContext context, String text, TextStyle style, String template) {
+  final st = style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+  final scaler = MediaQuery.textScalerOf(context);
+  final key = '$template|${st.fontSize}|${st.fontWeight}|${scaler.scale(14)}';
+  final width = _numWidths[key] ??=
+      (TextPainter(
+        text: TextSpan(text: template, style: st),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout()).width.ceilToDouble() +
+      1;
+  return SizedBox(
+    width: width,
+    child: Text(text, maxLines: 1, softWrap: false, overflow: TextOverflow.visible, style: st),
+  );
+}
+
 // ---------------------------------------------------------------- Simgeler
 
 class UnitIconPainter extends CustomPainter {
@@ -101,19 +125,29 @@ class TopBar extends StatelessWidget {
   final VoidCallback onMenu;
   final VoidCallback onPause;
 
-  Widget _res(IconData icon, Color col, String text, {Color textColor = Colors.white, String tip = ''}) {
+  Widget _res(
+    BuildContext context,
+    IconData icon,
+    Color col,
+    String text,
+    String template, {
+    Color textColor = Colors.white,
+    String tip = '',
+  }) {
     return Tooltip(
       message: tip,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: col, size: 18),
             const SizedBox(width: 5),
-            Text(
+            fixedNum(
+              context,
               text,
-              style: kTextShadow.copyWith(color: textColor, fontSize: 15, fontWeight: FontWeight.w700),
+              kTextShadow.copyWith(color: textColor, fontSize: 15, fontWeight: FontWeight.w700),
+              template,
             ),
           ],
         ),
@@ -165,12 +199,14 @@ class TopBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _res(Icons.monetization_on, const Color(0xFFFFC107), '${me.gold}', tip: 'Altın'),
-                  _res(Icons.forest, const Color(0xFF8BC34A), '${me.lumber}', tip: 'Odun'),
+                  _res(context, Icons.monetization_on, const Color(0xFFFFC107), '${me.gold}', '88888', tip: 'Altın'),
+                  _res(context, Icons.forest, const Color(0xFF8BC34A), '${me.lumber}', '88888', tip: 'Odun'),
                   _res(
+                    context,
                     Icons.restaurant,
                     const Color(0xFFFFAB91),
                     '${me.foodUsed}/${me.foodCap}',
+                    '888/888',
                     textColor: full ? const Color(0xFFFF6E6E) : Colors.white,
                     tip: 'Yiyecek (kullanılan / sınır)',
                   ),
@@ -184,12 +220,14 @@ class TopBar extends StatelessWidget {
             size: 18,
           ),
           const SizedBox(width: 6),
-          Text(
+          fixedNum(
+            context,
             g.clockText,
-            style: kTextShadow.copyWith(color: kGold, fontSize: 14, fontWeight: FontWeight.w700),
+            kTextShadow.copyWith(color: kGold, fontSize: 14, fontWeight: FontWeight.w700),
+            '88:88',
           ),
-          const SizedBox(width: 14),
-          Text(fmtClock(g.time), style: kTextShadow.copyWith(color: Colors.white70, fontSize: 13)),
+          const SizedBox(width: 10),
+          fixedNum(context, fmtClock(g.time), kTextShadow.copyWith(color: Colors.white70, fontSize: 13), '88:88'),
           const SizedBox(width: 8),
         ],
       ),
