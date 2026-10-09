@@ -54,120 +54,204 @@ class _MenuScreenState extends State<MenuScreen> {
   Difficulty difficulty = Difficulty.normal;
 
   void _start() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => GameScreen(faction: faction, difficulty: difficulty),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GameScreen(faction: faction, difficulty: difficulty),
+      ),
+    );
   }
 
-  Widget _factionCard(Faction f, String desc) {
+  static const _humanDesc =
+      'Paladin ve Başbüyücü komutasında piyadeler, tüfekçiler ve şövalyeler. Dengeli ve dayanıklı.';
+  static const _orcDesc = 'Boğa Şef ve Kahin önderliğinde savaşçılar, mızrakçılar ve kurt biniciler. Güçlü ve hızlı.';
+
+  Widget _factionCard(Faction f, String desc, {required bool compact}) {
     final selected = identical(f, faction);
     final color = playerColors[0];
+    final icon = compact ? 54.0 : 76.0;
     return GestureDetector(
       onTap: () => setState(() => faction = f),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          width: 300,
-          padding: const EdgeInsets.all(14),
+          width: compact ? 290 : 300,
+          padding: EdgeInsets.all(compact ? 9 : 14),
           decoration: panelDeco(radius: 10, glow: selected),
-          child: Column(children: [
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              for (final h in f.heroes)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: iconBox(highlight: selected),
-                  child: unitIcon(ut(h), color, 76),
-                ),
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: iconBox(highlight: selected),
-                child: unitIcon(ut(f.hall), color, 76),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final id in [...f.heroes, f.hall])
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: iconBox(highlight: selected),
+                      child: unitIcon(ut(id), color, icon),
+                    ),
+                ],
               ),
-            ]),
-            const SizedBox(height: 10),
-            Text(f.name, style: const TextStyle(color: kGold, fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Text(desc, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 13, height: 1.4)),
-          ]),
+              SizedBox(height: compact ? 6 : 10),
+              Text(
+                f.name,
+                style: TextStyle(color: kGold, fontSize: compact ? 16 : 20, fontWeight: FontWeight.w800),
+              ),
+              SizedBox(height: compact ? 3 : 6),
+              Text(
+                desc,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: const Color(0xFFD7CCC8), fontSize: compact ? 11.5 : 13, height: 1.35),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _difficulty({required bool compact}) => Wrap(
+    spacing: compact ? 6 : 10,
+    children: [
+      for (final d in Difficulty.values)
+        ChoiceChip(
+          label: Text(d.label, style: TextStyle(fontSize: compact ? 13 : 15)),
+          selected: d == difficulty,
+          selectedColor: const Color(0xFF6B4A1E),
+          backgroundColor: const Color(0xFF241A11),
+          side: const BorderSide(color: kBorder),
+          visualDensity: compact ? VisualDensity.compact : null,
+          onSelected: (_) => setState(() => difficulty = d),
+        ),
+    ],
+  );
+
+  Widget _startButton({required bool compact}) => SizedBox(
+    width: compact ? 230 : 280,
+    height: compact ? 46 : 56,
+    child: ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF7A5420),
+        foregroundColor: Colors.white,
+        side: const BorderSide(color: Color(0xFFFFD54F), width: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: TextStyle(fontSize: compact ? 17 : 20, fontWeight: FontWeight.w800, letterSpacing: 2),
+      ),
+      onPressed: _start,
+      child: const Text('SAVAŞA BAŞLA'),
+    ),
+  );
+
+  /// Yatay telefon: her şey tek ekrana sığar.
+  Widget _compactMenu() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'KRALLIKLAR SAVAŞI',
+          textAlign: TextAlign.center,
+          style: kTextShadow.copyWith(color: kGold, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 4),
+        ),
+        Text(
+          'Kahramanlar · Ordular · Gerçek Zamanlı Strateji',
+          style: kTextShadow.copyWith(color: const Color(0xFFD7CCC8), fontSize: 12, letterSpacing: 1.2),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 14,
+          runSpacing: 10,
+          alignment: WrapAlignment.center,
+          children: [
+            _factionCard(humanFaction, _humanDesc, compact: true),
+            _factionCard(orcFaction, _orcDesc, compact: true),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 22,
+          runSpacing: 10,
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [_difficulty(compact: true), _startButton(compact: true)],
+        ),
+      ],
+    );
+  }
+
+  Widget _fullMenu() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'KRALLIKLAR SAVAŞI',
+          textAlign: TextAlign.center,
+          style: kTextShadow.copyWith(color: kGold, fontSize: 46, fontWeight: FontWeight.w900, letterSpacing: 5),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Kahramanlar · Ordular · Gerçek Zamanlı Strateji',
+          style: kTextShadow.copyWith(color: const Color(0xFFD7CCC8), fontSize: 16, letterSpacing: 1.5),
+        ),
+        const SizedBox(height: 30),
+        Text(
+          'Tarafını seç',
+          style: kTextShadow.copyWith(color: kGold, fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 20,
+          runSpacing: 20,
+          alignment: WrapAlignment.center,
+          children: [
+            _factionCard(humanFaction, _humanDesc, compact: false),
+            _factionCard(orcFaction, _orcDesc, compact: false),
+          ],
+        ),
+        const SizedBox(height: 26),
+        Text(
+          'Zorluk',
+          style: kTextShadow.copyWith(color: kGold, fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 10),
+        _difficulty(compact: false),
+        const SizedBox(height: 30),
+        _startButton(compact: false),
+        const SizedBox(height: 26),
+        Container(
+          constraints: const BoxConstraints(maxWidth: 620),
+          padding: const EdgeInsets.all(14),
+          decoration: panelDeco(radius: 8),
+          child: const Text(
+            'Amaç: Düşmanın tüm yapılarını yık.\n'
+            'İşçilerle altın ve odun topla, çiftlik kurarak yiyecek sınırını artır. Kışlada ordu, '
+            'sunakta kahraman yetiştir. Kahramanlar tarafsız yaratık kamplarını temizleyerek seviye '
+            'atlar, yetenek öğrenir ve eşya toplar. Gece görüş mesafesi azalır.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFFD7CCC8), fontSize: 13.5, height: 1.5),
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     Sprites.initTrees();
+    final size = MediaQuery.sizeOf(context);
+    final compact = size.height < 560;
     return Scaffold(
-      body: Stack(children: [
-        const Positioned.fill(child: CustomPaint(painter: _MenuBackground())),
-        Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('KRALLIKLAR SAVAŞI',
-                  textAlign: TextAlign.center,
-                  style: kTextShadow.copyWith(color: kGold, fontSize: 46, fontWeight: FontWeight.w900, letterSpacing: 5)),
-              const SizedBox(height: 4),
-              Text('Kahramanlar · Ordular · Gerçek Zamanlı Strateji',
-                  style: kTextShadow.copyWith(color: const Color(0xFFD7CCC8), fontSize: 16, letterSpacing: 1.5)),
-              const SizedBox(height: 30),
-              Text('Tarafını seç', style: kTextShadow.copyWith(color: kGold, fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              Wrap(spacing: 20, runSpacing: 20, alignment: WrapAlignment.center, children: [
-                _factionCard(humanFaction,
-                    'Paladin ve Başbüyücü komutasında piyadeler, tüfekçiler ve şövalyeler. Dengeli ve dayanıklı.'),
-                _factionCard(orcFaction,
-                    'Boğa Şef ve Kahin önderliğinde savaşçılar, mızrakçılar ve kurt biniciler. Güçlü ve hızlı.'),
-              ]),
-              const SizedBox(height: 26),
-              Text('Zorluk', style: kTextShadow.copyWith(color: kGold, fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 10),
-              Wrap(spacing: 10, children: [
-                for (final d in Difficulty.values)
-                  ChoiceChip(
-                    label: Text(d.label, style: const TextStyle(fontSize: 15)),
-                    selected: d == difficulty,
-                    selectedColor: const Color(0xFF6B4A1E),
-                    backgroundColor: const Color(0xFF241A11),
-                    side: const BorderSide(color: kBorder),
-                    onSelected: (_) => setState(() => difficulty = d),
-                  ),
-              ]),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: 280,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7A5420),
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFFFD54F), width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 2),
-                  ),
-                  onPressed: _start,
-                  child: const Text('SAVAŞA BAŞLA'),
-                ),
+      body: Stack(
+        children: [
+          const Positioned.fill(child: CustomPaint(painter: _MenuBackground())),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: compact ? 10 : 24),
+                child: compact ? _compactMenu() : _fullMenu(),
               ),
-              const SizedBox(height: 26),
-              Container(
-                width: 620,
-                padding: const EdgeInsets.all(14),
-                decoration: panelDeco(radius: 8),
-                child: const Text(
-                  'Amaç: Düşmanın tüm yapılarını yık.\n'
-                  'İşçilerle altın ve odun topla, çiftlik kurarak yiyecek sınırını artır. Kışlada ordu, '
-                  'sunakta kahraman yetiştir. Kahramanlar tarafsız yaratık kamplarını temizleyerek seviye '
-                  'atlar, yetenek öğrenir ve eşya toplar. Gece görüş mesafesi azalır.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFFD7CCC8), fontSize: 13.5, height: 1.5),
-                ),
-              ),
-            ]),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -189,8 +273,11 @@ class _MenuBackground extends CustomPainter {
     );
     final rnd = Random(4);
     for (var i = 0; i < 90; i++) {
-      canvas.drawCircle(Offset(rnd.nextDouble() * size.width, rnd.nextDouble() * size.height * 0.45),
-          rnd.nextDouble() * 1.4 + 0.3, Paint()..color = Colors.white.withValues(alpha: rnd.nextDouble() * 0.7));
+      canvas.drawCircle(
+        Offset(rnd.nextDouble() * size.width, rnd.nextDouble() * size.height * 0.45),
+        rnd.nextDouble() * 1.4 + 0.3,
+        Paint()..color = Colors.white.withValues(alpha: rnd.nextDouble() * 0.7),
+      );
     }
     canvas.drawCircle(Offset(size.width * 0.82, size.height * 0.16), 46, Paint()..color = const Color(0x33FFF8E1));
     canvas.drawCircle(Offset(size.width * 0.82, size.height * 0.16), 34, Paint()..color = const Color(0xFFFFF3C4));
