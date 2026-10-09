@@ -486,15 +486,25 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         ),
       );
 
+  /// Kısa ekranlarda kaydırılabilen diyalog kutusu.
+  Widget _dialog({required double width, required Widget child, bool glow = false}) {
+    final size = MediaQuery.sizeOf(context);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: min(width, size.width - 24), maxHeight: size.height - 24),
+      child: Container(
+        decoration: panelDeco(radius: 10, glow: glow),
+        child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: child),
+      ),
+    );
+  }
+
   Widget _menuOverlay() {
     return Positioned.fill(
       child: Container(
         color: const Color(0xAA000000),
         child: Center(
-          child: Container(
+          child: _dialog(
             width: 520,
-            padding: const EdgeInsets.all(24),
-            decoration: panelDeco(radius: 10),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               const Text('OYUN MENÜSÜ', style: TextStyle(color: kGold, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2)),
               const SizedBox(height: 18),
@@ -547,10 +557,9 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
       child: Container(
         color: const Color(0xBB000000),
         child: Center(
-          child: Container(
+          child: _dialog(
             width: 480,
-            padding: const EdgeInsets.all(24),
-            decoration: panelDeco(radius: 10, glow: won),
+            glow: won,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Text(won ? 'ZAFER!' : 'YENİLGİ',
                   style: TextStyle(

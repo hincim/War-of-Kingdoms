@@ -142,25 +142,30 @@ class TopBar extends StatelessWidget {
         _btn('Menü (F10)', onMenu),
         const SizedBox(width: 8),
         _btn(c.paused ? 'Devam' : 'Duraklat', onPause),
-        const Spacer(),
-        _res(Icons.monetization_on, const Color(0xFFFFC107), '${me.gold}', tip: 'Altın'),
-        _res(Icons.forest, const Color(0xFF8BC34A), '${me.lumber}', tip: 'Odun'),
-        _res(Icons.restaurant, const Color(0xFFFFAB91), '${me.foodUsed}/${me.foodCap}',
-            textColor: full ? const Color(0xFFFF6E6E) : Colors.white, tip: 'Yiyecek (kullanılan / sınır)'),
-        const Spacer(),
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              _res(Icons.monetization_on, const Color(0xFFFFC107), '${me.gold}', tip: 'Altın'),
+              _res(Icons.forest, const Color(0xFF8BC34A), '${me.lumber}', tip: 'Odun'),
+              _res(Icons.restaurant, const Color(0xFFFFAB91), '${me.foodUsed}/${me.foodCap}',
+                  textColor: full ? const Color(0xFFFF6E6E) : Colors.white, tip: 'Yiyecek (kullanılan / sınır)'),
+            ]),
+          ),
+        ),
         Icon(night ? Icons.nightlight_round : Icons.wb_sunny,
             color: night ? const Color(0xFF90CAF9) : const Color(0xFFFFD54F), size: 18),
         const SizedBox(width: 6),
         Text(g.clockText, style: kTextShadow.copyWith(color: kGold, fontSize: 14, fontWeight: FontWeight.w700)),
         const SizedBox(width: 14),
-        Text(_fmtTime(g.time), style: kTextShadow.copyWith(color: Colors.white70, fontSize: 13)),
+        Text(fmtClock(g.time), style: kTextShadow.copyWith(color: Colors.white70, fontSize: 13)),
         const SizedBox(width: 8),
       ]),
     );
   }
 }
 
-String _fmtTime(double t) {
+String fmtClock(double t) {
   final m = t ~/ 60, s = (t % 60).floor();
   return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 }
@@ -629,10 +634,14 @@ class InfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sel = c.sel;
-    if (sel.isEmpty) return _empty();
-    if (sel.length == 1) return _single(sel.first);
-    return _multi(sel);
+    return LayoutBuilder(builder: (context, cons) {
+      // Çok dar alanda içerik sığmaz; taşma yerine boş bırak.
+      if (cons.maxWidth < 320 || cons.maxHeight < 110) return const SizedBox.shrink();
+      final sel = c.sel;
+      if (sel.isEmpty) return _empty();
+      if (sel.length == 1) return _single(sel.first);
+      return _multi(sel);
+    });
   }
 
   Widget _empty() {
