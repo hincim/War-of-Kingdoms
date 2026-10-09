@@ -9,9 +9,17 @@ import 'render/sprites.dart';
 import 'ui/game_screen.dart';
 import 'ui/hud.dart';
 
-void main() {
+/// Telefon ve tablet (yerel uygulama). Bu cihazlarda oyun yatay ve tam ekran açılır.
+bool get isMobilePlatform =>
+    !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) BrowserContextMenu.disableContextMenu();
+  if (isMobilePlatform) {
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
   runApp(const KingdomsApp());
 }
 
