@@ -25,11 +25,29 @@ kodla (prosedürel olarak) çizilir; harici görsel ya da paket gerekmez.
 
 ## Çalıştırma
 
+### Gereksinimler
+
+- **Flutter 3.47 veya üstü** (Dart 3.13+). Sürümünü `flutter --version` ile görebilir, gerekirse
+  `flutter upgrade` ile güncelleyebilirsin. Daha eski sürümlerde `flutter pub get` sürüm hatası verir.
+- iOS ve macOS için Xcode, Android için Android SDK (Android Studio), web için Chrome.
+
+### Kurulum
+
+```bash
+git clone https://github.com/hincim/War-of-Kingdoms.git
+cd War-of-Kingdoms
+flutter pub get
+```
+
+### Başlatma
+
 ```bash
 flutter run -d macos     # masaüstü
 flutter run -d chrome    # tarayıcı
 flutter run              # bağlı telefon / simülatör (iOS, Android)
 ```
+
+Proje macOS, iOS, Android ve web için derlenip denendi; Windows ve Linux sürümleri henüz denenmedi.
 
 Büyük ekranlarda fare ve klavye için tasarlanmış masaüstü arayüzü, telefonlarda (ya da 1000×620'den küçük
 pencerelerde) dokunmatik için ayrı bir arayüz açılır. Telefonda oyun yalnızca yatay ve tam ekran çalışır.
