@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'game/data.dart';
+import 'render/logo.dart';
 import 'render/sprites.dart';
 import 'ui/game_screen.dart';
 import 'ui/how_to_play.dart';
@@ -29,7 +30,7 @@ class KingdomsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Krallıklar Savaşı',
+      title: 'War of Kingdoms',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -161,10 +162,17 @@ class _MenuScreenState extends State<MenuScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'KRALLIKLAR SAVAŞI',
-          textAlign: TextAlign.center,
-          style: kTextShadow.copyWith(color: kGold, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 4),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CustomPaint(size: Size(54, 54), painter: LogoPainter()),
+            const SizedBox(width: 10),
+            Text(
+              'WAR OF KINGDOMS',
+              textAlign: TextAlign.center,
+              style: kTextShadow.copyWith(color: kGold, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 4),
+            ),
+          ],
         ),
         Text(
           'Kahramanlar · Ordular · Gerçek Zamanlı Strateji',
@@ -196,8 +204,10 @@ class _MenuScreenState extends State<MenuScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        const CustomPaint(size: Size(140, 140), painter: LogoPainter()),
+        const SizedBox(height: 4),
         Text(
-          'KRALLIKLAR SAVAŞI',
+          'WAR OF KINGDOMS',
           textAlign: TextAlign.center,
           style: kTextShadow.copyWith(color: kGold, fontSize: 46, fontWeight: FontWeight.w900, letterSpacing: 5),
         ),

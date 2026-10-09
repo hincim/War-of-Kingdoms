@@ -12,7 +12,7 @@ class MainFlutterWindow: NSWindow {
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
     self.minSize = NSSize(width: 800, height: 560)
-    self.title = "Krallıklar Savaşı"
+    self.title = "War of Kingdoms"
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 

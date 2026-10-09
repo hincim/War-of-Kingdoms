@@ -1,4 +1,6 @@
-# Krallıklar Savaşı
+<p align="center"><img src="docs/logo.png" alt="War of Kingdoms logosu" width="160"></p>
+
+# War of Kingdoms
 
 Kahramanların ve orduların çarpıştığı, Flutter ile yazılmış gerçek zamanlı strateji oyunu. Tüm grafikler
 kodla (prosedürel olarak) çizilir; harici görsel ya da paket gerekmez.
@@ -87,6 +89,7 @@ lib/
   game/game.dart          simülasyon: emirler, savaş, toplama, inşa, yetenekler, sis
   game/ai.dart            bilgisayar rakibi
   render/sprites.dart     prosedürel çizimler
+  render/logo.dart        oyun logosu (menü ve uygulama simgeleri)
   render/world_painter.dart  dünya çizimi (arazi önbelleği, sis, efektler)
   ui/controller.dart      seçim, komut kartı, kısayollar
   ui/hud.dart             masaüstü arayüzü: üst çubuk, mini harita, bilgi paneli, komut kartı
@@ -101,4 +104,10 @@ test/
 
 ```bash
 flutter test
+```
+
+Uygulama simgeleri `lib/render/logo.dart` çiziminden üretilir (iOS, Android, macOS, web, Windows):
+
+```bash
+flutter test tool/generate_icons_test.dart
 ```
