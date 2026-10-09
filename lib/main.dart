@@ -8,10 +8,7 @@ import 'game/data.dart';
 import 'render/sprites.dart';
 import 'ui/game_screen.dart';
 import 'ui/hud.dart';
-
-/// Telefon ve tablet (yerel uygulama). Bu cihazlarda oyun yatay ve tam ekran açılır.
-bool get isMobilePlatform =>
-    !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+import 'ui/mobile_hud.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

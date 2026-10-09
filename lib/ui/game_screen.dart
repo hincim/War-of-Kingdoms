@@ -12,6 +12,7 @@ import '../render/sprites.dart';
 import '../render/world_painter.dart';
 import 'controller.dart';
 import 'hud.dart';
+import 'mobile_hud.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key, required this.faction, required this.difficulty, this.seed, this.onReady});
@@ -48,8 +49,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   Offset? _panLast;
   double _lastClickTime = -10;
   Unit? _lastClickUnit;
-  Offset? _touchStart;
-  bool _touchMoved = false;
+  double _lastScale = 1;
   final Stopwatch _clock = Stopwatch()..start();
 
   @override
@@ -64,8 +64,11 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     game = Game(playerFaction: widget.faction, difficulty: widget.difficulty, seed: widget.seed);
     c = GameController(game);
     terrain = TerrainCache(game.map);
-    game.msg(kPlayer, 'Savaş başladı! İşçilerinle kaynak topla, ordunu kur ve düşman üssünü yık.',
-        color: const Color(0xFFFFE082));
+    game.msg(
+      kPlayer,
+      'Savaş başladı! İşçilerinle kaynak topla, ordunu kur ve düşman üssünü yık.',
+      color: const Color(0xFFFFE082),
+    );
     widget.onReady?.call(c);
   }
 
@@ -213,16 +216,14 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   bool get _shift => HardwareKeyboard.instance.isShiftPressed;
   bool get _ctrl => HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
 
+  static bool _isTouch(PointerDeviceKind k) =>
+      k == PointerDeviceKind.touch || k == PointerDeviceKind.stylus || k == PointerDeviceKind.invertedStylus;
+
   void _onDown(PointerDownEvent e) {
     _focus.requestFocus();
+    if (_isTouch(e.kind)) return; // dokunuşları GestureDetector işler
     c.view.mouse = e.localPosition;
     final w = c.view.toWorld(e.localPosition);
-    if (e.kind == PointerDeviceKind.touch) {
-      _touchStart = e.localPosition;
-      _panLast = e.localPosition;
-      _touchMoved = false;
-      return;
-    }
     if (e.buttons & kSecondaryMouseButton != 0) {
       c.rightClickWorld(w);
       _changed();
@@ -245,18 +246,8 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   }
 
   void _onMove(PointerMoveEvent e) {
+    if (_isTouch(e.kind)) return;
     c.view.mouse = e.localPosition;
-    if (e.kind == PointerDeviceKind.touch && _touchStart != null) {
-      if ((e.localPosition - _touchStart!).distance > 10) _touchMoved = true;
-      if (_touchMoved) {
-        final d = e.localPosition - _panLast!;
-        c.view.camX -= d.dx / c.view.zoom;
-        c.view.camY -= d.dy / c.view.zoom;
-        c.clampCamera();
-      }
-      _panLast = e.localPosition;
-      return;
-    }
     if (_middlePan) {
       final d = e.localPosition - _panLast!;
       c.view.camX -= d.dx / c.view.zoom;
@@ -274,13 +265,8 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   }
 
   void _onUp(PointerUpEvent e) {
+    if (_isTouch(e.kind)) return;
     final w = c.view.toWorld(e.localPosition);
-    if (e.kind == PointerDeviceKind.touch && _touchStart != null) {
-      if (!_touchMoved) _tap(w);
-      _touchStart = null;
-      _changed();
-      return;
-    }
     if (_middlePan) {
       _middlePan = false;
       return;
@@ -306,23 +292,57 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     _changed();
   }
 
-  void _tap(Offset w) {
-    if (c.view.placing != null || c.view.targeting != null) {
-      c.leftClickWorld(w);
+  // ------------------------------------------------------------ Dokunmatik
+
+  void _onTapUp(TapUpDetails d) {
+    if (c.view.placing != null) c.view.mouse = d.localPosition;
+    c.tapWorld(c.view.toWorld(d.localPosition), _clock.elapsedMilliseconds / 1000.0);
+    if (c.view.placing == null) c.view.mouse = null;
+    _changed();
+  }
+
+  void _onScaleStart(ScaleStartDetails d) {
+    _lastScale = 1;
+    if (c.view.placing != null && d.pointerCount == 1) c.view.mouse = d.localFocalPoint;
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails d) {
+    if (d.pointerCount >= 2) {
+      final f = d.scale / _lastScale;
+      _lastScale = d.scale;
+      if ((f - 1).abs() > 0.0005) c.zoomAt(d.localFocalPoint, f);
+    } else if (c.view.placing != null) {
+      // Tek parmakla yerleştirme hayaletini taşı.
+      c.view.mouse = d.localFocalPoint;
       return;
     }
-    final u = c.pickVisible(w);
-    if (u != null && u.owner == kPlayer) {
-      final now = _clock.elapsedMilliseconds / 1000.0;
-      final dbl = u == _lastClickUnit && now - _lastClickTime < 0.35;
-      c.leftClickWorld(w, dbl: dbl);
-      _lastClickTime = now;
-      _lastClickUnit = u;
-    } else if (c.ownSelection) {
-      c.rightClickWorld(w);
-    } else {
-      c.leftClickWorld(w);
+    c.view.camX -= d.focalPointDelta.dx / c.view.zoom;
+    c.view.camY -= d.focalPointDelta.dy / c.view.zoom;
+    c.clampCamera();
+  }
+
+  void _onLongPressStart(LongPressStartDetails d) {
+    HapticFeedback.mediumImpact();
+    c.view.dragStart = d.localPosition;
+    c.view.dragEnd = d.localPosition;
+  }
+
+  void _onLongPressMove(LongPressMoveUpdateDetails d) => c.view.dragEnd = d.localPosition;
+
+  void _onLongPressEnd(LongPressEndDetails d) {
+    final a = c.view.dragStart, b = c.view.dragEnd;
+    c.view.dragStart = null;
+    c.view.dragEnd = null;
+    if (a != null && b != null) {
+      if ((b - a).distance < 16) {
+        // Sürüklemeden basılı tutma: aynı türdeki tüm birimleri seç.
+        final u = c.pickVisible(c.view.toWorld(a));
+        if (u != null && u.owner == kPlayer) c.selectSameTypeOnScreen(u);
+      } else {
+        c.boxSelect(Rect.fromPoints(c.view.toWorld(a), c.view.toWorld(b)));
+      }
     }
+    _changed();
   }
 
   void _onSignal(PointerSignalEvent e) {
@@ -359,105 +379,153 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
             onPointerHover: (e) => _screenMouse = e.position,
             onPointerMove: (e) => _screenMouse = e.position,
             onPointerDown: (e) => _screenMouse = e.position,
-            child: LayoutBuilder(builder: (context, cons) {
-              c.screen = cons.biggest;
-              if (!_centered) {
-                _centered = true;
-                final hall = game.units.firstWhere((u) => u.owner == kPlayer && u.type.townHall);
-                c.centerOn(hall.x, hall.y);
-              }
-              return Stack(children: [
-                Positioned.fill(
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: _hud,
-                    builder: (context, _, child) => MouseRegion(
-                      cursor: c.view.targeting != null ? SystemMouseCursors.precise : SystemMouseCursors.basic,
-                      onHover: (e) => c.view.mouse = e.localPosition,
-                      child: child,
-                    ),
-                    child: Listener(
-                      onPointerDown: _onDown,
-                      onPointerMove: _onMove,
-                      onPointerUp: _onUp,
-                      onPointerSignal: _onSignal,
-                      onPointerPanZoomUpdate: _onPanZoom,
-                      child: RepaintBoundary(
-                        child: CustomPaint(
-                          size: Size.infinite,
-                          painter: WorldPainter(
-                            g: game,
-                            view: c.view,
-                            terrain: terrain,
-                            fog: fogImg,
-                            showAllBars: () => HardwareKeyboard.instance.isAltPressed,
-                            repaint: _frame,
+            child: LayoutBuilder(
+              builder: (context, cons) {
+                c.screen = cons.biggest;
+                final safe = MediaQuery.paddingOf(context);
+                final compact = isMobilePlatform || cons.maxWidth < 1000 || cons.maxHeight < 620;
+                c.touch = compact;
+                c.hudTop = compact ? kMobileTop : kTopBar;
+                c.hudBottom = compact ? safe.bottom + 48 : kBottomHud;
+                if (!_centered) {
+                  _centered = true;
+                  if (compact) c.view.zoom = 1.0;
+                  final hall = game.units.firstWhere((u) => u.owner == kPlayer && u.type.townHall);
+                  c.centerOn(hall.x, hall.y);
+                }
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: _hud,
+                        builder: (context, _, child) => MouseRegion(
+                          cursor: c.view.targeting != null ? SystemMouseCursors.precise : SystemMouseCursors.basic,
+                          onHover: (e) => c.view.mouse = e.localPosition,
+                          child: child,
+                        ),
+                        child: GestureDetector(
+                          supportedDevices: const {
+                            PointerDeviceKind.touch,
+                            PointerDeviceKind.stylus,
+                            PointerDeviceKind.invertedStylus,
+                          },
+                          onTapUp: _onTapUp,
+                          onScaleStart: _onScaleStart,
+                          onScaleUpdate: _onScaleUpdate,
+                          onLongPressStart: _onLongPressStart,
+                          onLongPressMoveUpdate: _onLongPressMove,
+                          onLongPressEnd: _onLongPressEnd,
+                          child: Listener(
+                            onPointerDown: _onDown,
+                            onPointerMove: _onMove,
+                            onPointerUp: _onUp,
+                            onPointerSignal: _onSignal,
+                            onPointerPanZoomUpdate: _onPanZoom,
+                            child: RepaintBoundary(
+                              child: CustomPaint(
+                                size: Size.infinite,
+                                painter: WorldPainter(
+                                  g: game,
+                                  view: c.view,
+                                  terrain: terrain,
+                                  fog: fogImg,
+                                  showAllBars: () => HardwareKeyboard.instance.isAltPressed,
+                                  repaint: _frame,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: _hud,
-                    builder: (context, _, _) => TopBar(
-                      c: c,
-                      onMenu: () => setState(() => c.menuOpen = true),
-                      onPause: () => setState(() => c.paused = !c.paused),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 8,
-                  top: kTopBar + 8,
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: _hud,
-                    builder: (context, _, _) => HeroBar(c: c, onChanged: _changed),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: kBottomHud + 14,
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: _hud,
-                    builder: (context, _, _) => MessageList(c: c),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: _hud,
-                    builder: (context, _, _) => BottomPanel(
-                      c: c,
-                      minimapBase: minimapBase,
-                      fog: fogImg,
-                      minimapRepaint: _minimap,
-                      onChanged: _changed,
-                    ),
-                  ),
-                ),
-                if (c.paused && !c.menuOpen)
-                  Positioned(
-                    top: kTopBar + 40,
-                    left: 0,
-                    right: 0,
-                    child: IgnorePointer(
-                      child: Center(
-                        child: Text('DURAKLATILDI',
-                            style: kTextShadow.copyWith(color: kGold, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 4)),
+                    if (compact)
+                      Positioned.fill(
+                        child: ValueListenableBuilder<int>(
+                          valueListenable: _hud,
+                          builder: (context, _, _) => MobileHud(
+                            c: c,
+                            minimapBase: minimapBase,
+                            fog: fogImg,
+                            minimapRepaint: _minimap,
+                            onChanged: _changed,
+                            onMenu: () => setState(() => c.menuOpen = true),
+                            onPause: () => setState(() => c.paused = !c.paused),
+                            safe: safe,
+                          ),
+                        ),
+                      )
+                    else ...[
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        child: ValueListenableBuilder<int>(
+                          valueListenable: _hud,
+                          builder: (context, _, _) => TopBar(
+                            c: c,
+                            onMenu: () => setState(() => c.menuOpen = true),
+                            onPause: () => setState(() => c.paused = !c.paused),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                if (c.menuOpen && game.winner == null) _menuOverlay(),
-                if (game.winner != null) _endOverlay(),
-              ]);
-            }),
+                      Positioned(
+                        left: 8,
+                        top: kTopBar + 8,
+                        child: ValueListenableBuilder<int>(
+                          valueListenable: _hud,
+                          builder: (context, _, _) => HeroBar(c: c, onChanged: _changed),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: kBottomHud + 14,
+                        child: ValueListenableBuilder<int>(
+                          valueListenable: _hud,
+                          builder: (context, _, _) => MessageList(c: c),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: ValueListenableBuilder<int>(
+                          valueListenable: _hud,
+                          builder: (context, _, _) => BottomPanel(
+                            c: c,
+                            minimapBase: minimapBase,
+                            fog: fogImg,
+                            minimapRepaint: _minimap,
+                            onChanged: _changed,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (c.paused && !c.menuOpen)
+                      Positioned(
+                        top: c.hudTop + 40,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: Center(
+                            child: Text(
+                              'DURAKLATILDI',
+                              style: kTextShadow.copyWith(
+                                color: kGold,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (c.menuOpen && game.winner == null) _menuOverlay(),
+                    if (game.winner != null) _endOverlay(),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -465,26 +533,26 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   }
 
   Widget _menuButton(String label, VoidCallback onTap, {bool primary = false}) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: SizedBox(
-          width: 260,
-          height: 44,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary ? const Color(0xFF6B4A1E) : const Color(0xFF2A1F14),
-              foregroundColor: kGold,
-              side: const BorderSide(color: kBorder, width: 1.5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            onPressed: () {
-              onTap();
-              _focus.requestFocus();
-            },
-            child: Text(label),
-          ),
+    padding: const EdgeInsets.only(bottom: 10),
+    child: SizedBox(
+      width: 260,
+      height: 44,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primary ? const Color(0xFF6B4A1E) : const Color(0xFF2A1F14),
+          foregroundColor: kGold,
+          side: const BorderSide(color: kBorder, width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
-      );
+        onPressed: () {
+          onTap();
+          _focus.requestFocus();
+        },
+        child: Text(label),
+      ),
+    ),
+  );
 
   /// Kısa ekranlarda kaydırılabilen diyalog kutusu.
   Widget _dialog({required double width, required Widget child, bool glow = false}) {
@@ -505,33 +573,49 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         child: Center(
           child: _dialog(
             width: 520,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('OYUN MENÜSÜ', style: TextStyle(color: kGold, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2)),
-              const SizedBox(height: 18),
-              _menuButton('Oyuna Dön', () => setState(() => c.menuOpen = false), primary: true),
-              _menuButton('Yeniden Başlat', () => setState(_restart)),
-              _menuButton('Ana Menüye Dön', () => Navigator.of(context).pop()),
-              const SizedBox(height: 8),
-              const Divider(color: kBorder),
-              const SizedBox(height: 6),
-              const Text(
-                'Sol tık: seç · Sürükle: kutu seçimi · Çift tık: aynı türdekiler\n'
-                'Sağ tık: hareket / saldırı / toplama / eşya alma / toplanma noktası\n'
-                'A: saldır · S: dur · H: pozisyonu koru · M: hareket · B: inşa · G: topla\n'
-                'Q W E: kahraman yetenekleri · O: yetenek öğren\n'
-                'Ctrl+1-9: grup ata · 1-9: grup seç (iki kez: kamera)\n'
-                'F1/F2: kahramanlar · F8: boştaki işçi · Boşluk: son uyarı\n'
-                'Ok tuşları / ekran kenarı / orta tuş / iki parmak: kamera · Tekerlek: yakınlaştır\n'
-                'Alt: tüm can çubukları · Pause: duraklat',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFFD7CCC8), fontSize: 12.5, height: 1.5),
-              ),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'OYUN MENÜSÜ',
+                  style: TextStyle(color: kGold, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2),
+                ),
+                const SizedBox(height: 18),
+                _menuButton('Oyuna Dön', () => setState(() => c.menuOpen = false), primary: true),
+                _menuButton('Yeniden Başlat', () => setState(_restart)),
+                _menuButton('Ana Menüye Dön', () => Navigator.of(context).pop()),
+                const SizedBox(height: 8),
+                const Divider(color: kBorder),
+                const SizedBox(height: 6),
+                Text(
+                  c.touch ? _touchHelp : _mouseHelp,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 12.5, height: 1.5),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  static const _touchHelp =
+      'Dokun: birim seç · Seçiliyken yere / düşmana / madene / ağaca dokun: emir ver\n'
+      'Çift dokun ya da basılı tut: aynı türdeki birimler · Basılı tut + sürükle: kutu seçimi\n'
+      'Tek parmakla kaydır: kamera · İki parmak: yakınlaştır · Mini harita: hızlı geçiş\n'
+      'Sol sütun: kahramanlar, boştaki işçi, tüm ordu · ✕: seçimi kaldır\n'
+      'İnşa: yapıyı seç, yere dokun ya da sürükleyip ✓ ile onayla';
+
+  static const _mouseHelp =
+      'Sol tık: seç · Sürükle: kutu seçimi · Çift tık: aynı türdekiler\n'
+      'Sağ tık: hareket / saldırı / toplama / eşya alma / toplanma noktası\n'
+      'A: saldır · S: dur · H: pozisyonu koru · M: hareket · B: inşa · G: topla\n'
+      'Q W E: kahraman yetenekleri · O: yetenek öğren\n'
+      'Ctrl+1-9: grup ata · 1-9: grup seç (iki kez: kamera)\n'
+      'F1/F2: kahramanlar · F8: boştaki işçi · Boşluk: son uyarı\n'
+      'Ok tuşları / ekran kenarı / orta tuş / iki parmak: kamera · Tekerlek: yakınlaştır\n'
+      'Alt: tüm can çubukları · Pause: duraklat';
 
   void _restart() {
     terrain.dispose();
@@ -546,13 +630,31 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     final won = game.winner == kPlayer;
     final me = game.players[kPlayer], ai = game.players[kEnemy];
     Widget row(String label, String a, String b) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(children: [
-            Expanded(child: Text(label, style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 14))),
-            SizedBox(width: 90, child: Text(a, textAlign: TextAlign.right, style: TextStyle(color: me.color, fontSize: 14, fontWeight: FontWeight.bold))),
-            SizedBox(width: 90, child: Text(b, textAlign: TextAlign.right, style: TextStyle(color: ai.color, fontSize: 14, fontWeight: FontWeight.bold))),
-          ]),
-        );
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 14)),
+          ),
+          SizedBox(
+            width: 90,
+            child: Text(
+              a,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: me.color, fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ),
+          SizedBox(
+            width: 90,
+            child: Text(
+              b,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: ai.color, fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
     return Positioned.fill(
       child: Container(
         color: const Color(0xBB000000),
@@ -560,31 +662,41 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
           child: _dialog(
             width: 480,
             glow: won,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(won ? 'ZAFER!' : 'YENİLGİ',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  won ? 'ZAFER!' : 'YENİLGİ',
                   style: TextStyle(
-                      color: won ? const Color(0xFFFFD54F) : const Color(0xFFFF5252),
-                      fontSize: 40,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 6)),
-              const SizedBox(height: 6),
-              Text(won ? 'Düşman üssü yerle bir edildi.' : 'Tüm yapılarınız yıkıldı.',
-                  style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 15)),
-              const SizedBox(height: 16),
-              row('', 'Siz', 'Rakip'),
-              const Divider(color: kBorder),
-              row('Toplanan altın', '${me.goldMined}', '${ai.goldMined}'),
-              row('Toplanan odun', '${me.lumberMined}', '${ai.lumberMined}'),
-              row('Üretilen birim', '${me.unitsTrained}', '${ai.unitsTrained}'),
-              row('Öldürülen', '${me.kills}', '${ai.kills}'),
-              row('Kaybedilen birim', '${me.unitsLost}', '${ai.unitsLost}'),
-              const SizedBox(height: 6),
-              Text('Süre: ${(game.time ~/ 60)} dk ${(game.time % 60).floor()} sn',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              const SizedBox(height: 18),
-              _menuButton('Tekrar Oyna', () => setState(_restart), primary: true),
-              _menuButton('Ana Menüye Dön', () => Navigator.of(context).pop()),
-            ]),
+                    color: won ? const Color(0xFFFFD54F) : const Color(0xFFFF5252),
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 6,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  won ? 'Düşman üssü yerle bir edildi.' : 'Tüm yapılarınız yıkıldı.',
+                  style: const TextStyle(color: Color(0xFFD7CCC8), fontSize: 15),
+                ),
+                const SizedBox(height: 16),
+                row('', 'Siz', 'Rakip'),
+                const Divider(color: kBorder),
+                row('Toplanan altın', '${me.goldMined}', '${ai.goldMined}'),
+                row('Toplanan odun', '${me.lumberMined}', '${ai.lumberMined}'),
+                row('Üretilen birim', '${me.unitsTrained}', '${ai.unitsTrained}'),
+                row('Öldürülen', '${me.kills}', '${ai.kills}'),
+                row('Kaybedilen birim', '${me.unitsLost}', '${ai.unitsLost}'),
+                const SizedBox(height: 6),
+                Text(
+                  'Süre: ${(game.time ~/ 60)} dk ${(game.time % 60).floor()} sn',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 18),
+                _menuButton('Tekrar Oyna', () => setState(_restart), primary: true),
+                _menuButton('Ana Menüye Dön', () => Navigator.of(context).pop()),
+              ],
+            ),
           ),
         ),
       ),

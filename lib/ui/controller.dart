@@ -61,6 +61,15 @@ class GameController {
   bool paused = false;
   bool menuOpen = false;
   Size screen = const Size(1280, 800);
+
+  /// Arayüzün üstte ve altta kapladığı alan (kamera sınırları için).
+  double hudTop = kTopBar, hudBottom = kBottomHud;
+
+  /// Dokunmatik mod: daha toleranslı seçim, yerleştirme onayı, daha büyük seçim sınırı.
+  bool touch = false;
+  int get maxSelection => touch ? 24 : 12;
+  double _lastTapTime = -10;
+  Unit? _lastTapUnit;
   int _lastGroup = -1;
   double _lastGroupTime = -10;
   int _idleIdx = 0;
@@ -74,21 +83,21 @@ class GameController {
 
   void centerOn(double x, double y) {
     view.camX = x - screen.width / (2 * view.zoom);
-    view.camY = y - (screen.height - kBottomHud + kTopBar) / (2 * view.zoom);
+    view.camY = y - (screen.height - hudBottom + hudTop) / (2 * view.zoom);
     clampCamera();
   }
 
   void clampCamera() {
     final z = view.zoom;
     final maxX = kMapPx - screen.width / z;
-    final maxY = kMapPx - (screen.height - kBottomHud) / z;
+    final maxY = kMapPx - (screen.height - hudBottom) / z;
     view.camX = view.camX.clamp(min(0.0, maxX), max(0.0, maxX));
-    view.camY = view.camY.clamp(min(-kTopBar / z, maxY), max(-kTopBar / z, maxY));
+    view.camY = view.camY.clamp(min(-hudTop / z, maxY), max(-hudTop / z, maxY));
   }
 
   void zoomAt(Offset screenPos, double factor) {
     final before = view.toWorld(screenPos);
-    view.zoom = (view.zoom * factor).clamp(0.55, 1.6);
+    view.zoom = (view.zoom * factor).clamp(touch ? 0.5 : 0.55, touch ? 1.8 : 1.6);
     view.camX = before.dx - screenPos.dx / view.zoom;
     view.camY = before.dy - screenPos.dy / view.zoom;
     clampCamera();
@@ -104,8 +113,29 @@ class GameController {
 
   Unit? pickVisible(Offset w) {
     final u = game.pick(w.dx, w.dy);
-    if (u == null || !isVisible(u)) return null;
-    return u;
+    if (u != null && isVisible(u)) return u;
+    if (!touch) return null;
+    // Parmakla dokunuş: yakındaki en yakın birimi kabul et.
+    final tol = 26 / view.zoom;
+    Unit? best;
+    var bd = double.infinity;
+    for (final o in game.units) {
+      if (o.dead || o.hidden || !isVisible(o)) continue;
+      double d;
+      if (o.isBuilding) {
+        final r = o.footprint.inflate(tol * 0.6);
+        if (!r.contains(w)) continue;
+        d = 1000 + (Offset(o.x, o.y) - w).distance;
+      } else {
+        d = (Offset(o.x, o.y - o.radius * 0.5) - w).distance - o.radius * 1.5;
+        if (d > tol) continue;
+      }
+      if (d < bd) {
+        bd = d;
+        best = o;
+      }
+    }
+    return best;
   }
 
   static int _rank(Unit u) {
@@ -124,7 +154,7 @@ class GameController {
     });
     sel
       ..clear()
-      ..addAll(list.take(12));
+      ..addAll(list.take(maxSelection));
     cardMode = 'main';
     cancelModes();
   }
@@ -146,10 +176,18 @@ class GameController {
 
   void boxSelect(Rect worldRect, {bool shift = false}) {
     final units = game.units
-        .where((u) => u.owner == kPlayer && !u.isBuilding && !u.hidden && worldRect.inflate(u.radius * 0.6).contains(Offset(u.x, u.y)))
+        .where(
+          (u) =>
+              u.owner == kPlayer &&
+              !u.isBuilding &&
+              !u.hidden &&
+              worldRect.inflate(u.radius * 0.6).contains(Offset(u.x, u.y)),
+        )
         .toList();
     if (units.isEmpty) {
-      final bs = game.units.where((u) => u.owner == kPlayer && u.isBuilding && worldRect.overlaps(u.footprint)).toList();
+      final bs = game.units
+          .where((u) => u.owner == kPlayer && u.isBuilding && worldRect.overlaps(u.footprint))
+          .toList();
       if (bs.isNotEmpty) {
         final t = bs.first.type;
         select(bs.where((b) => b.type == t).toList());
@@ -167,8 +205,60 @@ class GameController {
   }
 
   void selectSameTypeOnScreen(Unit u) {
-    final vr = Rect.fromLTWH(view.camX, view.camY, screen.width / view.zoom, (screen.height - kBottomHud) / view.zoom);
-    select(game.units.where((o) => o.owner == kPlayer && o.type == u.type && !o.hidden && vr.contains(Offset(o.x, o.y))).toList());
+    final vr = Rect.fromLTWH(view.camX, view.camY, screen.width / view.zoom, (screen.height - hudBottom) / view.zoom);
+    select(
+      game.units
+          .where((o) => o.owner == kPlayer && o.type == u.type && !o.hidden && vr.contains(Offset(o.x, o.y)))
+          .toList(),
+    );
+  }
+
+  /// Tüm askeri birimleri (işçiler hariç) seçer.
+  void selectArmy() {
+    final army = game.units.where((u) => u.owner == kPlayer && !u.isBuilding && !u.type.worker && !u.hidden).toList();
+    if (army.isEmpty) {
+      game.msg(kPlayer, 'Henüz askeri biriminiz yok.');
+      return;
+    }
+    select(army);
+  }
+
+  /// Dokunmatik ekranda tek dokunuş: seçim ya da bağlama göre emir.
+  void tapWorld(Offset w, double now) {
+    if (view.placing != null || view.targeting != null) {
+      leftClickWorld(w);
+      return;
+    }
+    final u = pickVisible(w);
+    final dbl = u != null && u == _lastTapUnit && now - _lastTapTime < 0.4;
+    _lastTapTime = now;
+    _lastTapUnit = u;
+    final commanding = ownSelection && sel.any((o) => !o.isBuilding);
+    if (u != null && u.owner == kPlayer) {
+      // İşçiler seçiliyken yarım kalmış binaya dokunmak inşaata yardım ettirir.
+      if (commanding && u.isBuilding && u.constructing && sel.every((o) => o.type.worker)) {
+        rightClickWorld(w);
+        return;
+      }
+      if (dbl) {
+        selectSameTypeOnScreen(u);
+      } else {
+        select([u]);
+      }
+      return;
+    }
+    if (commanding) {
+      rightClickWorld(w);
+      return;
+    }
+    select(u == null ? [] : [u]);
+  }
+
+  /// Dokunmatik yerleştirme: hayaletin bulunduğu yere inşa et.
+  void confirmPlacement() {
+    final m = view.mouse;
+    if (view.placing == null || m == null) return;
+    _placeBuilding(view.toWorld(m), false);
   }
 
   void leftClickWorld(Offset w, {bool shift = false, bool dbl = false, bool ctrl = false}) {
@@ -354,6 +444,20 @@ class GameController {
       },
     );
     if (view.targeting != null || view.placing != null) {
+      final pl = view.placing;
+      if (touch && pl != null && view.mouse != null) {
+        final tp = view.placeTile(view.toWorld(view.mouse!), pl);
+        card[10] = Cmd(
+          name: 'Buraya Yerleştir',
+          hotkey: 'Y',
+          icon: Icons.check_circle,
+          iconColor: const Color(0xFF8BC34A),
+          desc: 'Yapıyı gösterilen yere kurar. Yeri değiştirmek için parmağınızı sürükleyin ya da istediğiniz yere dokunun.',
+          enabled: game.canPlace(pl, tp.x, tp.y, kPlayer),
+          highlight: true,
+          onTap: confirmPlacement,
+        );
+      }
       card[11] = cancel;
       return card;
     }
@@ -380,6 +484,7 @@ class GameController {
           onTap: () {
             if (!game.canAfford(me, t.gold, t.lumber)) return;
             view.placing = t;
+            if (touch) view.mouse = Offset(screen.width / 2, (screen.height - hudBottom + hudTop) / 2);
           },
         );
       }
